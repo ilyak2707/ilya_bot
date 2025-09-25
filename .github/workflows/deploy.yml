@@ -1,0 +1,26 @@
+name: Deploy to server
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: 46.29.162.79
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/tg-bot
+            # Обновляем код с GitHub
+            git fetch --all
+            git reset --hard origin/main
+            # Перезапускаем бота
+            ./stop.sh || true
+            ./start.sh
