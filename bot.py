@@ -7,7 +7,7 @@ load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Бот запущен. Напиши что-нибудь — я повторю.")
+    await update.message.reply_text("Бот обновлён через GitHub Actions. Напиши что-нибудь — я повторю.")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Повторяем текст
