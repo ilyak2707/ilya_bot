@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Venv
+venv/
+
+# Логи/пид-файл
+logs/
+bot.pid
+
+# Секреты
+.env
+
+# IDE
+.vscode/
+.idea/
