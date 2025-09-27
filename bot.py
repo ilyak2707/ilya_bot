@@ -111,7 +111,7 @@ async def start_questionnaire(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data.clear()
     await update.message.reply_text(
-        "Пожалуйста, укажите вашу фамилию, имя и отчество (при наличии).",
+        "Пожалуйста, укажите вашу фамилию и имя.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return ASK_FULL_NAME
@@ -121,8 +121,7 @@ async def ask_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     full_name = update.message.text.strip()
     if len(full_name.split()) < 2:
         await update.message.reply_text(
-            "Пожалуйста, введите фамилию и имя полностью, например: Иванов Иван." \
-            " Если отчества нет — напишите «без отчества»."
+            "Пожалуйста, введите фамилию и имя полностью, например: Иванов Иван."
         )
         return ASK_FULL_NAME
 
