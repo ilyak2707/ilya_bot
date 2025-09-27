@@ -25,7 +25,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 CHECKLIST_PATH = os.getenv("CHECKLIST_PATH", "/home/deploy/tg-bot/checklist.pdf")
 
-ASK_FULL_NAME, ASK_ROLE, ASK_PHONE, ASK_EMAIL, CONFIRM_CONSENT = range(5)
+ASK_FULL_NAME, ASK_ROLE, ASK_PHONE, CONFIRM_CONSENT = range(4)
 
 ROLE_OPTIONS = [
     "Руководитель",
@@ -34,8 +34,8 @@ ROLE_OPTIONS = [
     "Физическое лицо",
 ]
 
-CONSENT_ACCEPT = "✅ Да, даю согласие"
-CONSENT_DECLINE = "❌ Нет, не даю согласие"
+CONSENT_ACCEPT = "✅ Даю согласие"
+CONSENT_DECLINE = "❌ Не даю согласие"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -180,11 +180,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     normalized_phone = _normalize_phone_number(contact.phone_number)
     context.user_data["phone"] = normalized_phone
 
-    await update.message.reply_text(
-        "Укажите адрес электронной почты (для отправки материалов и обратной связи).",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    return ASK_EMAIL
+    return await ask_consent(update, context)
 
 
 async def request_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -196,19 +192,11 @@ async def request_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def ask_consent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    email = update.message.text.strip()
-    email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-    if not re.fullmatch(email_pattern, email):
-        await update.message.reply_text("Пожалуйста, введите корректный адрес электронной почты.")
-        return ASK_EMAIL
-
-    context.user_data["email"] = email
-
     consent_text = dedent(
         f"""
         Для завершения оформления необходимо ваше согласие на обработку персональных данных.
 
-        Подтверждая согласие, вы разрешаете оператору (ИП Иванов Илья Сергеевич, ИНН 000000000000) обрабатывать указанные вами данные с целью отправки чек-листа, обратной связи и направления информации о продуктах и услугах. Обработка включает сбор, запись, систематизацию, накопление, хранение, уточнение, использование, передачу (в том числе с использованием сервисов рассылок, расположенных на территории РФ), обезличивание и уничтожение данных.
+        Подтверждая согласие, вы разрешаете оператору (ИП Иванов Илья Сергеевич, ИНН 000000000000) обрабатывать указанные вами данные: фамилию и имя, статус, номер телефона, а также идентификатор и username в Telegram. Цель обработки — отправка чек-листа, обратная связь и направление информации о продуктах и услугах. Обработка включает сбор, запись, систематизацию, накопление, хранение, уточнение, использование, передачу (в том числе с использованием сервисов рассылок, расположенных на территории РФ), обезличивание и уничтожение данных.
 
         Согласие действует до достижения целей обработки или до вашего отзыва. Вы можете отозвать его в любой момент, отправив запрос на privacy@example.ru или используя команду /revoke.
 
@@ -226,7 +214,7 @@ async def ask_consent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     choice = update.message.text.strip()
-    if choice != CONSENT_ACCEPT:
+    if choice == CONSENT_DECLINE:
         await update.message.reply_text(
             "Вы отказались от обработки персональных данных. Чек-лист не будет отправлен. Если передумаете — нажмите «📄 Получить чек-лист».",
             reply_markup=ReplyKeyboardMarkup(
@@ -235,6 +223,17 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         context.user_data.clear()
         return ConversationHandler.END
+
+    if choice != CONSENT_ACCEPT:
+        await update.message.reply_text(
+            "Пожалуйста, используйте кнопки ниже для выбора.",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton(text=CONSENT_ACCEPT)], [KeyboardButton(text=CONSENT_DECLINE)]],
+                resize_keyboard=True,
+                one_time_keyboard=True,
+            ),
+        )
+        return CONFIRM_CONSENT
 
     user_data = context.user_data.copy()
     user = update.effective_user
@@ -250,7 +249,6 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         ФИО: {user_data.get('full_name')}
         Статус: {user_data.get('role')}
         Телефон: {user_data.get('phone')}
-        Email: {user_data.get('email')}
         """
     ).strip()
 
@@ -263,7 +261,7 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logger.warning("ADMIN_CHAT_ID не задан. Данные пользователя не отправлены администратору.")
 
     await update.message.reply_text(
-        "Спасибо! Ниже прикреплён чек-лист. Если письмо не пришло, проверьте папку «Спам».",
+        "Спасибо! Ниже прикреплён чек-лист.",
         reply_markup=ReplyKeyboardMarkup(
             [[KeyboardButton(text="📄 Получить чек-лист")]], resize_keyboard=True
         ),
@@ -318,7 +316,6 @@ def main() -> None:
                 MessageHandler(filters.CONTACT, handle_contact),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, request_contact),
             ],
-            ASK_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_consent)],
             CONFIRM_CONSENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, finalize)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
