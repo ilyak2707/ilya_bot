@@ -45,14 +45,14 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Приветствие и информация об обработке персональных данных."""
 
-    keyboard = [[KeyboardButton(text="Получить чек-лист")]]
+    keyboard = [[KeyboardButton(text="📄 Получить чек-лист")]]
     welcome_text = dedent(
         """
         👋 Добро пожаловать! Этот бот поможет вам получить чек-лист по подготовке бизнеса.
 
-        Нажимая кнопку «Получить чек-лист», вы инициируете передачу своих персональных данных для связи и отправки материала. Передача данных осуществляется в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».
+        Нажимая кнопку «📄 Получить чек-лист», вы инициируете передачу своих персональных данных для связи и отправки материала. Передача данных осуществляется в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».
 
-        Вы можете ознакомиться с дополнительной информацией и своими правами с помощью команды /privacy.
+        Политика ПДн: /policy • Данные запрошу только после согласия.
         """
     ).strip()
 
@@ -192,9 +192,9 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     choice = update.message.text.strip()
     if choice != CONSENT_ACCEPT:
         await update.message.reply_text(
-            "Вы отказались от обработки персональных данных. Чек-лист не будет отправлен. Если передумаете — нажмите «Получить чек-лист».",
+            "Вы отказались от обработки персональных данных. Чек-лист не будет отправлен. Если передумаете — нажмите «📄 Получить чек-лист».",
             reply_markup=ReplyKeyboardMarkup(
-                [[KeyboardButton(text="Получить чек-лист")]], resize_keyboard=True
+                [[KeyboardButton(text="📄 Получить чек-лист")]], resize_keyboard=True
             ),
         )
         context.user_data.clear()
@@ -229,7 +229,7 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         "Спасибо! Ниже прикреплён чек-лист. Если письмо не пришло, проверьте папку «Спам».",
         reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton(text="Получить чек-лист")]], resize_keyboard=True
+            [[KeyboardButton(text="📄 Получить чек-лист")]], resize_keyboard=True
         ),
     )
 
@@ -259,9 +259,9 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     await update.message.reply_text(
-        "Опрос прерван. Если захотите начать заново — нажмите «Получить чек-лист».",
+        "Опрос прерван. Если захотите начать заново — нажмите «📄 Получить чек-лист».",
         reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton(text="Получить чек-лист")]], resize_keyboard=True
+            [[KeyboardButton(text="📄 Получить чек-лист")]], resize_keyboard=True
         ),
     )
     return ConversationHandler.END
@@ -274,7 +274,7 @@ def main() -> None:
     app = Application.builder().token(TOKEN).build()
 
     conversation_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^Получить чек-лист$"), start_questionnaire)],
+        entry_points=[MessageHandler(filters.Regex(r"^📄 Получить чек-лист$"), start_questionnaire)],
         states={
             ASK_FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_role)],
             ASK_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_phone)],
