@@ -133,28 +133,66 @@ async def ask_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ASK_ROLE
 
 
+def _phone_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(text="📞 Отправить номер телефона", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 async def ask_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     role = update.message.text.strip()
     context.user_data["role"] = role
     await update.message.reply_text(
-        "Оставьте, пожалуйста, номер телефона для связи (формат +7XXXXXXXXXX)."
+        "Отправьте, пожалуйста, номер телефона кнопкой ниже.",
+        reply_markup=_phone_keyboard(),
     )
     return ASK_PHONE
 
 
-async def ask_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    phone = update.message.text.strip()
-    if not re.fullmatch(r"\+7\d{10}", phone):
+def _normalize_phone_number(phone: str) -> str:
+    digits = re.sub(r"\D", "", phone)
+    if not digits:
+        return phone
+
+    if digits.startswith("8"):
+        digits = "7" + digits[1:]
+
+    if digits.startswith("7") and len(digits) == 11:
+        return f"+{digits}"
+
+    if phone.startswith("+"):
+        return phone
+
+    return f"+{digits}" if digits else phone
+
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    contact = update.message.contact
+    if not contact or not contact.phone_number:
         await update.message.reply_text(
-            "Номер должен быть в формате +7XXXXXXXXXX. Попробуйте ещё раз."
+            "Не удалось получить номер телефона. Пожалуйста, воспользуйтесь кнопкой ниже.",
+            reply_markup=_phone_keyboard(),
         )
         return ASK_PHONE
 
-    context.user_data["phone"] = phone
+    normalized_phone = _normalize_phone_number(contact.phone_number)
+    context.user_data["phone"] = normalized_phone
+
     await update.message.reply_text(
         "Укажите адрес электронной почты (для отправки материалов и обратной связи).",
+        reply_markup=ReplyKeyboardRemove(),
     )
     return ASK_EMAIL
+
+
+async def request_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text(
+        "Пожалуйста, отправьте номер телефона, нажав на кнопку ниже.",
+        reply_markup=_phone_keyboard(),
+    )
+    return ASK_PHONE
 
 
 async def ask_consent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -276,7 +314,10 @@ def main() -> None:
         states={
             ASK_FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_role)],
             ASK_ROLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_phone)],
-            ASK_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_email)],
+            ASK_PHONE: [
+                MessageHandler(filters.CONTACT, handle_contact),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, request_contact),
+            ],
             ASK_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_consent)],
             CONFIRM_CONSENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, finalize)],
         },
